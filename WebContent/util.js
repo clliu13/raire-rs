@@ -1,3 +1,4 @@
+
 "use strict";
 
 // This file contains a couple of general utilities that Andrew often uses.

@@ -19,6 +19,11 @@ const EffectOfAssertionOnEliminationOrderSuffix = {
  * @param {number[]} elimination_order_suffix A list of candidate indices, being a suffix of the elimination order, the last being the winner.
  * @return {Symbol} a field of EffectOfAssertionOnEliminationOrderSuffix
  */
+//这个函数判断当前的 elimination_order_suffix 是否与断言相符
+//返回值可能是：
+//Contradiction：当前淘汰顺序与断言矛盾。
+//Ok：当前淘汰顺序与断言一致。
+//NeedsMoreDetail：当前淘汰顺序信息不足，可能需要扩展以进一步判断。
 function assertion_ok_elimination_order_suffix(assertion,elimination_order_suffix) {
     if (assertion.type==="NEN") { // check that the suffix is compatible with the continuing candidates.
         for (let index = Math.max(0,elimination_order_suffix.length-assertion.continuing.length);index<elimination_order_suffix.length;index++) {
@@ -57,17 +62,24 @@ function assertion_ok_elimination_order_suffix(assertion,elimination_order_suffi
  */
 function assertion_allowed_suffixes(assertion,elimination_order_suffix,num_candidates,just_get_enough_info)  {
     let effect = assertion_ok_elimination_order_suffix(assertion,elimination_order_suffix);
+    //如果 effect 是 Contradiction，表示当前淘汰顺序与断言矛盾。
     if (effect===EffectOfAssertionOnEliminationOrderSuffix.Contradiction) {
+        //如果 just_get_enough_info 为 true，则返回当前的 elimination_order_suffix。
+        //如果 just_get_enough_info 为 false，直接丢弃这个矛盾的淘汰顺序，返回空数组。
         if (just_get_enough_info) return [elimination_order_suffix];
         else return [];
     }
+    //如果当前淘汰顺序与断言一致，则直接返回这个淘汰顺序，它是有效的。
     else if (effect===EffectOfAssertionOnEliminationOrderSuffix.Ok) { return [elimination_order_suffix]; }
     else { // must need more information. Extend the suffixes.
         let res = [];
+        //遍历所有的候选人，如果当前淘汰顺序中不包含这个候选人，那么就将这个候选人加入到淘汰顺序的最前面。
         for (let candidate=0;candidate<num_candidates;candidate++) {
             if (!elimination_order_suffix.includes(candidate)) {
                 let v = [candidate].concat(elimination_order_suffix);
+                //对新的淘汰顺序 v 递归调用 assertion_allowed_suffixes，继续判断这个新的淘汰顺序是否与断言匹配。
                 let extras = assertion_allowed_suffixes(assertion,v,num_candidates,just_get_enough_info);
+                //extras是一个数组，包含所有从 v 扩展出来的可能淘汰顺序。
                 res.push(...extras);
             }
         }
@@ -328,14 +340,26 @@ function make_trees(elimination_orders,after_applying_assertion_elimination_orde
 function draw_trees_as_text(div,elimination_orders,candidate_names,assertion,after_applying_assertion_elimination_orders,description,tree_ui_options) {
     for (const eo of elimination_orders) {
         const line = add(div,"div");
+
+        //加log
+        //console.log("draw_trees_as_text中,正在处理的淘汰顺序:", eo);
+
+        //假如存在淘汰顺序的长度大于候选人的数量，那么就会显示省略号 “...<”
         if (eo.length<candidate_names.length) add(line,"span").innerText="...<";
         for (let i=0;i<eo.length;i++) {
             const candidate = eo[i];
+            //如果不是第一个候选人，那么就会显示箭头“<”
             if (i!==0) add(line,"span").innerText="<";
+            //这里去调用candidate_class函数，返回的是一个字符串，用来给span标签添加class属性，用来设置winner和loser的颜色区别
             let annotation = "candidate_name "+candidate_class(candidate,assertion);
+            
+             // 打印每个候选人的class信息
+            //console.log(`Candidate ${candidate_names[candidate]} 的class信息:`, annotation);
             add(line,"span",annotation).innerText=candidate_names[candidate];
         }
     }
+
+
 }
 
 /**
@@ -572,6 +596,17 @@ function draw_trees_as_trees(div,elimination_orders,candidate_names,assertion,af
  * @param {number} winner_id 0 based integer saying who the winner is. Only used if hide_winner is true.
  */
 function explain(div,assertions,candidate_names,expand_fully_at_start,draw_text_not_trees,hide_winner,winner_id) {
+    //调用explain之后,打印log
+    console.log("调用explain之后,用到了的参数:", {
+        assertions,
+        candidate_names,
+        expand_fully_at_start,
+        draw_text_not_trees,
+        hide_winner,
+        winner_id,
+    });
+    
+    //给所有断言添加索引index
     for (let assertion_index=0;assertion_index<assertions.length;assertion_index++) {
         const assertion = assertions[assertion_index];
         if (!assertion.hasOwnProperty("assertion_index")) assertion.assertion_index = assertion_index;
@@ -579,11 +614,14 @@ function explain(div,assertions,candidate_names,expand_fully_at_start,draw_text_
     const num_candidates=candidate_names.length;
     //console.log(candidate_names);
     //console.log(assertions);
+
+    //检查是否选中了某个复选框，返回true或false
     function checkBoxIfPresent(boxName,default_value) {
         let ui = document.getElementById(boxName);
         return ui?ui.checked:default_value;
     }
     const show_separately = checkBoxIfPresent("ShowEffectOfEachAssertionSeparately",false);
+    //检查多个选项，并存储在 tree_ui_options 对象中，用于后续的可视化树形结构绘制。
     const tree_ui_options = {
         preventTextOverlapping : checkBoxIfPresent("preventTextOverlapping",true),
         splitGreaterThanLines : checkBoxIfPresent("splitGreaterThanLines",true),
@@ -591,31 +629,55 @@ function explain(div,assertions,candidate_names,expand_fully_at_start,draw_text_
         showAssertionText : checkBoxIfPresent("showAssertionText",true),
     };
     allImages=[];
+    //判断是否单独展示每个断言的效果
     if (show_separately) {
         // Explain the elimination method.
         add(div,"h3").innerText="Demonstration by progressive elimination"
+        //是否以文本形式展示
         let draw_trees = draw_text_not_trees?draw_trees_as_text:draw_trees_as_trees;
+        //是否在最开始展开所有可能
         let elimination_orders = expand_fully_at_start?all_elimination_orders(num_candidates):all_elimination_order_suffixes(num_candidates);
+        //判断如果隐藏赢家，将赢家排除在外
         if (hide_winner) {
+            //js 数组的一个方法，创建一个新数组，其中只包含通过指定测试的元素,把所有赢家是真正赢家的顺序都去掉
             elimination_orders=elimination_orders.filter(order=>order[order.length-1]!==winner_id);
         }
+
+        //打印初始的淘汰顺序
+        console.log("初始的淘汰顺序:", elimination_orders);
+
         add(div,"h5","explanation_text").innerText="We start with all possible elimination orders"+(hide_winner?" (except those compatible with "+candidate_names[winner_id]+" winning)":"");
+        //实际上去调用draw_trees_as_trees或者draw_trees_as_text函数，首先将所有可能的淘汰顺序展示出来
         draw_trees(add(div,"div","all_trees"),elimination_orders,candidate_names,null,null,"at start",tree_ui_options);
+
         for (const assertion of assertions) {
+            //打印正在处理的断言
+            //console.log("当前正在处理的断言:", assertion);
+
             const assertionHeading = add(div,"h4","assertion_name");
             assertionHeading.append("Assertion : ");
+            //调用assertion_description_with_triangles给断言提到的候选人添加三角形符号
             assertion_description_with_triangles(assertionHeading,assertion,candidate_names);
+            //调用assertion_all_allowed_suffixes，根据断言筛选出仍然符合条件的淘汰顺序
             elimination_orders = assertion_all_allowed_suffixes(assertion,elimination_orders,num_candidates,true);
+            
+            //打印断言筛选后的淘汰顺序
+            //console.log("断言之后的淘汰顺序:", elimination_orders);
+
             const elimination_orders_after = assertion_all_allowed_suffixes(assertion,elimination_orders,num_candidates,false);
             add(div,"h5","explanation_text").innerText="Evaluate assertion, expanding paths if necessary";
+            //显示执行断言时候的淘汰顺序树
             draw_trees(add(div,"div","all_trees"),elimination_orders,candidate_names,assertion,elimination_orders_after,"before applying "+assertion_description(assertion,candidate_names),tree_ui_options);
             elimination_orders = elimination_orders_after;
             add(div,"h5","explanation_text").innerText="After applying assertion";
+            //显示执行断言后，剪枝之后的淘汰树
             draw_trees(add(div,"div","all_trees"),elimination_orders,candidate_names,null,null,"after applying "+assertion_description(assertion,candidate_names),tree_ui_options);
         }
     } else {
+        // 没有选择逐步，生成一个整体的树形结构，展示哪些可能的淘汰顺序被具体哪条断言所剪枝掉。
         // Explain the elimination method.
         add(div,"h3").innerText="Demonstration by showing what eliminated each possibility"
+        //遍历所有候选人，为每个候选人生成树形图，显示该候选人是否被排除
         for (let candidate=0;candidate<candidate_names.length;candidate++) {
             if (hide_winner && candidate===winner_id) continue;
             const tree = new TreeShowingWhatEliminatedItNode([],candidate,assertions,candidate_names.length);
@@ -637,6 +699,9 @@ function checkOptionVisibility() {
 }
 
 function describe_raire_result(output_div,explanation_div,data) {
+
+    console.log("describe_raire_result函数输入的data:", data);
+    //辅助方法，根据ID获取候选人的名字
     function candidate_name(id) {
         if (data.metadata && Array.isArray(data.metadata.candidates)) {
             let name = data.metadata.candidates[id];
@@ -647,10 +712,12 @@ function describe_raire_result(output_div,explanation_div,data) {
     function candidate_name_list(ids) {
         return ids.map(candidate_name).join(",")
     }
+    //检查是否识别输入格式成功，warning_trim_timed_out如果存在，则输出警告，表示由于超时某些断言可能是冗余的。
     if (data.solution && data.solution.Ok) {
         if (data.solution.Ok.warning_trim_timed_out) {
             add(output_div,"p","warning").innerText="Warning : Trimming timed out. Some assertions may be redundant.";
         }
+        //输出explain花费的时间信息
         function describe_time(what,time_taken) {
             if (time_taken) {
                 let time_desc = time_taken.seconds>0.1?Number(time_taken.seconds).toFixed(1)+" seconds":Number(time_taken.seconds*1000).toFixed(2)+" milliseconds";
@@ -660,6 +727,7 @@ function describe_raire_result(output_div,explanation_div,data) {
         describe_time("determine winners",data.solution.Ok.time_to_determine_winners);
         describe_time("find assertions",data.solution.Ok.time_to_find_assertions);
         describe_time("trim assertions",data.solution.Ok.time_to_trim_assertions);
+        //核心业务之前的处理，输出每一条断言的详细信息，输出断言的风险值，难度和边界值
         let heading_name = "Assertions";
         if (data.metadata.hasOwnProperty("contest")) heading_name+=" for "+data.metadata.contest;
         if (data.solution.Ok.hasOwnProperty("difficulty")) heading_name+=" - difficulty = "+data.solution.Ok.difficulty;
@@ -692,6 +760,7 @@ function describe_raire_result(output_div,explanation_div,data) {
             }
             assertionIndex++;
         }
+        //还是一些准备工作，加上Candidate名字，加上一些选项，比如是否展开，是否隐藏赢家，是否以文本形式展示
         let candidate_names = data.metadata && data.metadata.candidates;
         if (!(Array.isArray(candidate_names))) candidate_names = [];
         for (let i=candidate_names.length;i<data.solution.Ok.num_candidates;i++) { candidate_names.push("Candidate "+i); } // extend names if only some present
@@ -708,6 +777,17 @@ function describe_raire_result(output_div,explanation_div,data) {
                 }
             }
         }*/
+        
+        // 打印核心业务的log
+        console.log("进入explain函数前,所需要的参数输入:", {
+            assertions,
+            candidate_names,
+            expand_fully_at_start: document.getElementById("ExpandAtStart").checked,
+            draw_text_not_trees: document.getElementById("DrawAsText").checked,
+            hide_winner,
+            winner_id,
+        });
+        //从这里进入核心业务，explain函数
         explain(explanation_div,assertions,candidate_names,document.getElementById("ExpandAtStart").checked,document.getElementById("DrawAsText").checked,hide_winner,winner_id);
     } else if (data.solution && data.solution.Err) {
         let err = data.solution.Err;

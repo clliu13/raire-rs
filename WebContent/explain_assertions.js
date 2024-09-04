@@ -1,9 +1,12 @@
 "use strict";
 
-
+//这里是核心业务的开始
 function explain_assertions() {
     checkOptionVisibility();
     let input = document.getElementById("Input").value;
+
+    console.log("原始输入:", input); // 打印原始输入
+
     let format_div = document.getElementById("Format");
     let output_div = document.getElementById("Output");
     let explanation_div = document.getElementById("Explanation");
@@ -12,15 +15,22 @@ function explain_assertions() {
     removeAllChildElements(explanation_div);
     let parsed_input = null;
     try {
+        // JSON.parse() 方法用于将一个 JSON 字符串转换为对象，存储在parsed_input中
         parsed_input=JSON.parse(input);
+        console.log("parsed解析之后的输入:", parsed_input);
     } catch (e) {
         add(output_div,"p","error").innerText="Error : input is not JSON";
         return;
     }
+    // interpret_input_formats()识别输入格式，raire, Michelle Blom RAIRE, ShangriLa log
     const contests = interpret_input_formats(parsed_input);
+
+    console.log("Contests打印解释后的格式:", contests); // 打印解释后的格式
+
     if (contests && contests.format) {
         add(format_div,"p").innerText="Format : "+contests.format;
         for (const contest of contests.contests) {
+            //从这里进入处理输入的业务，describe_raire_result()函数,在prettyprint_assertions_and_pictures.js中
             describe_raire_result(output_div,explanation_div,contest);
         }
     } else {

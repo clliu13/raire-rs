@@ -36,6 +36,7 @@ function explain_assertions() {
     describe_raire_result(output_div,explanation_div,last_computed_output);
 }
 
+
 function load_example(url) {
     function failure(message) {
         alert("Could not load "+url+" sorry. Message :"+message);
@@ -61,6 +62,7 @@ function make_examples() {
     }
 }
 
+if (typeof window !== 'undefined') {
 window.onload = function () {
     make_examples();
     checkOptionVisibility();
@@ -75,4 +77,20 @@ window.onload = function () {
     document.getElementById("DrawAsText").addEventListener('change',explain_assertions);
     document.getElementById("HideWinner").addEventListener('change',explain_assertions);
     document.getElementById("ShowEffectOfEachAssertionSeparately").addEventListener('change',explain_assertions);
+};
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        explain_assertions,
+        execute_raire,
+        load_example,
+        make_examples,
+        last_computed_output,
+        checkOptionVisibility,
+        removeAllChildElements,
+        add,
+        getWebJSON,
+        describe_raire_result
+    };
 }
